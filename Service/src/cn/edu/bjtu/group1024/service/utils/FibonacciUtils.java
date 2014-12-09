@@ -16,7 +16,11 @@ public class FibonacciUtils {
 		if (n == 1 || n == 2) {
 			return 1;
 		} else {
-			return (javaRecursion(n - 1) + javaRecursion(n - 2));
+			try{
+				return (javaRecursion(n - 1) + javaRecursion(n - 2));
+			}catch(StackOverflowError e){
+				return -1;
+			}
 		}
 	}
 
@@ -45,17 +49,12 @@ public class FibonacciUtils {
 	 * @param n
 	 * @return
 	 */
-	public static int nativeRecursion(int n) {
-		return 0;
-	}
+	public native static int nativeRecursion(int n);
 
 	/**
 	 * NATIVEµü´ú
 	 * @param n
 	 * @return
 	 */
-	public static int nativeInterative(int n) {
-		return 0;
-	}
-
+	public native static int nativeInterative(int n);
 }

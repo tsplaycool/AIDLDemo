@@ -1,6 +1,8 @@
 package cn.edu.bjtu.group1024.client;
 
 import cn.edu.bjtu.group1024.common.aidl.IFibonacci;
+import cn.edu.bjtu.group1024.common.aidl.Request;
+import cn.edu.bjtu.group1024.common.aidl.Response;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
@@ -14,6 +16,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends Activity implements OnClickListener {
@@ -23,6 +26,11 @@ public class MainActivity extends Activity implements OnClickListener {
 	private Button mNativeIterationBtn;
 	private Button mNativeRecursionBtn;
 	private EditText mEditText;
+	private TextView mTextView;
+	private Toast mToast;
+
+	private boolean mIsCalc = false;
+	private Response mResponse;
 
 	private IFibonacci mFibonacci;
 	private ServiceConnection mServiceConnection = new ServiceConnection() {
@@ -47,6 +55,7 @@ public class MainActivity extends Activity implements OnClickListener {
 		mNativeIterationBtn = (Button) findViewById(R.id.btn_native_iteration);
 		mNativeRecursionBtn = (Button) findViewById(R.id.btn_native_recursion);
 		mEditText = (EditText) findViewById(R.id.editText);
+		mTextView = (TextView) findViewById(R.id.tv_consume_time);
 
 		mJavaIterationBtn.setOnClickListener(this);
 		mJavaRecursionBtn.setOnClickListener(this);
@@ -70,33 +79,106 @@ public class MainActivity extends Activity implements OnClickListener {
 
 	@Override
 	public void onClick(View v) {
+		if (mIsCalc) {
+			showToast("请等待上一个计算返回结果...");
+			return;
+		}
 		String editString = mEditText.getText().toString();
+		int num;
 		if (TextUtils.isEmpty(editString)) {
-			Toast.makeText(this, "输入为空", Toast.LENGTH_LONG).show();
+			showToast("输入为空");
 			return;
-		} else if (Integer.parseInt(editString) == 0) {
-			Toast.makeText(this, "输入不能为0", Toast.LENGTH_LONG).show();
-			return;
-		}
-		int num = Integer.parseInt(editString);
-		try {
-			switch (v.getId()) {
-			case R.id.btn_java_iteration:
-				String s = null;
-				s = mFibonacci.javaInterative(num) + "";
-				Toast.makeText(this, s, Toast.LENGTH_LONG).show();
-				break;
-			case R.id.btn_java_recursion:
-				break;
-			case R.id.btn_native_iteration:
-				break;
-			case R.id.btn_native_recursion:
-				break;
+		} else {
+			try {
+				num = Integer.parseInt(editString);
+			} catch (NumberFormatException e) {
+				showToast("数字太大");
+				return;
 			}
-		} catch (RemoteException e) {
-			e.printStackTrace();
-
+			if (Integer.parseInt(editString) == 0) {
+				showToast("输入不能为0");
+				return;
+			}
 		}
+		final Request request = new Request();
+		request.setNum(num);
+		mIsCalc = true;
 
+		switch (v.getId()) {
+		case R.id.btn_java_iteration:
+			new Thread() {
+				public void run() {
+					try {
+						mResponse = mFibonacci.javaInterative(request);
+						updateTextView();
+					} catch (RemoteException e) {
+						showToast("远程调用出错（数据太大，可能栈溢出）");
+						mIsCalc = false;
+					}
+				};
+			}.start();
+			break;
+		case R.id.btn_java_recursion:
+			new Thread() {
+				public void run() {
+					try {
+						mResponse = mFibonacci.javaRecursion(request);
+						updateTextView();
+					} catch (RemoteException e) {
+						showToast("远程调用出错（数据太大，可能栈溢出）");
+						mIsCalc = false;
+					}
+				};
+			}.start();
+
+			break;
+		case R.id.btn_native_iteration:
+			new Thread() {
+				public void run() {
+					try {
+						mResponse = mFibonacci.nativeInterative(request);
+						updateTextView();
+					} catch (RemoteException e) {
+						showToast("远程调用出错（数据太大，可能栈溢出）");
+						mIsCalc = false;
+					}
+				};
+			}.start();
+			break;
+		case R.id.btn_native_recursion:
+			new Thread() {
+				public void run() {
+					try {
+						mResponse = mFibonacci.nativeRecursion(request);
+						updateTextView();
+					} catch (RemoteException e) {
+						showToast("远程调用出错（数据太大，可能栈溢出）");
+						mIsCalc = false;
+					}
+				};
+			}.start();
+			break;
+		}
+	}
+
+	private void updateTextView() {
+		runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				mTextView.setText(mResponse.getMillSecond() + "ms ,结果为："
+						+ mResponse.getmResult());
+			}
+		});
+		mIsCalc = false;
+	}
+
+	public void showToast(String text) {
+		if (mToast == null) {
+			mToast = Toast.makeText(this, text, Toast.LENGTH_SHORT);
+		} else {
+			mToast.setText(text);
+			mToast.setDuration(Toast.LENGTH_SHORT);
+		}
+		mToast.show();
 	}
 }
